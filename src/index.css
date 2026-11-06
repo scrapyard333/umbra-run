@@ -30,3 +30,8 @@ body {
 
 .glow-neon { text-shadow: 0 0 18px rgba(168,85,247,.85), 0 0 42px rgba(168,85,247,.5); }
 .glow-ice { text-shadow: 0 0 18px rgba(34,211,238,.85), 0 0 42px rgba(34,211,238,.5); }
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0.9; }
+}

@@ -3,21 +3,30 @@ import { Engine, WORLD_H, GROUND_Y, PLAYER_X, PLAYER_W } from '../game/engine.js
 import { draw, fx } from '../game/renderer.js'
 import { LEVELS, SKINS } from '../game/constants.js'
 import { useGame } from '../store'
+import Hud from './Hud.jsx'
+import GameOverCard from './GameOverCard.jsx'
+import PauseMenu from './PauseMenu.jsx'
 
 export default function GameScreen() {
   const canvasRef = useRef(null)
-  const restartRef = useRef(() => {})
+  const ctl = useRef({})
   const [hud, setHud] = useState({ dist: 0, score: 0, orbs: 0, level: 0 })
   const [over, setOver] = useState(null)
   const [banner, setBanner] = useState(null)
+  const [paused, setPaused] = useState(false)
+  const [count, setCount] = useState(0)
+  const soundOn = useGame((s) => s.settings.sound)
+  const toggleSetting = useGame((s) => s.toggleSetting)
   const setScreen = useGame((s) => s.setScreen)
+  const openModal = useGame((s) => s.openModal)
 
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     const eng = new Engine({ seed: (Math.random() * 1e9) | 0 })
     const accentOf = () => (SKINS.find((k) => k.id === useGame.getState().skin) || SKINS[0]).accent
-    let w = 1200, scale = 1, raf = 0, last = performance.now(), hudT = 0, handled = false, bannerTimer = 0
+    let w = 1200, scale = 1, raf = 0, last = performance.now(), hudT = 0
+    let handled = false, bannerTimer = 0, isPaused = false, resumeIn = 0, shown = 0
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -30,15 +39,37 @@ export default function GameScreen() {
     resize()
     window.addEventListener('resize', resize)
 
+    const locked = () => isPaused || resumeIn > 0
+
     const restart = () => {
       eng.seed = (Math.random() * 1e9) | 0
       eng.reset()
       fx.clear()
       handled = false
+      isPaused = false
+      resumeIn = 0
+      shown = 0
+      last = performance.now()
       setOver(null)
       setBanner(null)
+      setPaused(false)
+      setCount(0)
     }
-    restartRef.current = restart
+
+    const togglePause = () => {
+      if (eng.state !== 'running') return
+      if (isPaused) { isPaused = false; resumeIn = 3; shown = 3; setCount(3) }
+      else { isPaused = true; resumeIn = 0; shown = 0; setCount(0) }
+      setPaused(isPaused)
+      last = performance.now()
+    }
+
+    ctl.current = {
+      restart,
+      togglePause,
+      jump: () => { if (!locked() && eng.state === 'running') eng.jump() },
+      slide: (on) => { if (on && locked()) return; eng.setSlide(on) },
+    }
 
     const onEvent = (e) => {
       const cx = PLAYER_X + PLAYER_W / 2
@@ -56,11 +87,22 @@ export default function GameScreen() {
     const loop = (now) => {
       const dt = Math.min((now - last) / 1000, 0.05)
       last = now
-      eng.update(dt)
-      eng.drain().forEach(onEvent)
-      draw(ctx, eng, { w, h: WORLD_H, scale, dt, accent: accentOf() })
+      let step = dt
+      if (resumeIn > 0) {
+        resumeIn -= dt
+        const c = Math.max(0, Math.ceil(resumeIn))
+        if (c !== shown) { shown = c; setCount(c) }
+        step = 0
+      } else if (isPaused) {
+        step = 0
+      }
+      if (step > 0) {
+        eng.update(step)
+        eng.drain().forEach(onEvent)
+      }
+      draw(ctx, eng, { w, h: WORLD_H, scale, dt: step, accent: accentOf() })
 
-      hudT += dt
+      hudT += step
       if (hudT > 0.1) {
         hudT = 0
         setHud({ dist: Math.floor(eng.distM), score: eng.score, orbs: eng.orbCount, level: eng.level })
@@ -68,12 +110,18 @@ export default function GameScreen() {
       if (eng.state === 'dead' && !handled) {
         handled = true
         const st = useGame.getState()
+        const prevBest = st.best
         st.submitRun(eng.score)
         st.addOrbs(eng.orbCount)
         setHud({ dist: Math.floor(eng.distM), score: eng.score, orbs: eng.orbCount, level: eng.level })
         setOver({
-          dist: Math.floor(eng.distM), orbs: eng.orbCount, score: eng.score,
-          level: eng.level + 1, best: Math.max(st.best, eng.score),
+          dist: Math.floor(eng.distM),
+          orbs: eng.orbCount,
+          score: eng.score,
+          level: eng.level + 1,
+          levelName: LEVELS[eng.level].name,
+          best: Math.max(prevBest, eng.score),
+          newBest: eng.score > prevBest,
         })
       }
       raf = requestAnimationFrame(loop)
@@ -81,22 +129,30 @@ export default function GameScreen() {
     raf = requestAnimationFrame(loop)
 
     const down = (e) => {
+      if (useGame.getState().modal) return
       if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
         e.preventDefault()
         if (e.repeat) return
         if (eng.state === 'dead') restart()
-        else eng.jump()
+        else ctl.current.jump()
       } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
         e.preventDefault()
-        eng.setSlide(true)
+        ctl.current.slide(true)
+      } else if (e.code === 'KeyP' || e.code === 'Escape') {
+        if (!e.repeat) togglePause()
       }
     }
     const up = (e) => {
-      if (e.code === 'ArrowDown' || e.code === 'KeyS') eng.setSlide(false)
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') ctl.current.slide(false)
     }
-    const tap = () => { if (eng.state === 'running') eng.jump() }
+    const onHidden = () => {
+      if (document.hidden && eng.state === 'running' && !isPaused) togglePause()
+    }
+    const tap = () => ctl.current.jump()
+
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
+    document.addEventListener('visibilitychange', onHidden)
     canvas.addEventListener('pointerdown', tap)
 
     return () => {
@@ -105,6 +161,7 @@ export default function GameScreen() {
       window.removeEventListener('resize', resize)
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
+      document.removeEventListener('visibilitychange', onHidden)
       canvas.removeEventListener('pointerdown', tap)
     }
   }, [])
@@ -113,49 +170,38 @@ export default function GameScreen() {
     <div className="absolute inset-0 bg-void">
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" />
 
-      <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-4 rounded-2xl border border-white/10 bg-panel/80 px-5 py-3 backdrop-blur">
-        <div>
-          <div className="text-[10px] font-bold tracking-widest text-white/60">DIST</div>
-          <div className="font-display text-2xl font-bold">{hud.dist}<span className="text-sm text-neon">m</span></div>
-        </div>
-        <div>
-          <div className="text-[10px] font-bold tracking-widest text-white/60">SCORE</div>
-          <div className="font-display text-2xl font-bold text-neon">{hud.score}</div>
-        </div>
-        <div>
-          <div className="text-[10px] font-bold tracking-widest text-white/60">ORBS</div>
-          <div className="font-display text-2xl font-bold text-orb">{hud.orbs}</div>
-        </div>
-        <div className="border-l border-white/10 pl-4">
-          <div className="text-[10px] font-bold tracking-widest text-ice">LV.{hud.level + 1}</div>
-          <div className="text-xs font-semibold">{LEVELS[hud.level].name}</div>
-        </div>
-      </div>
+      <Hud
+        hud={hud}
+        banner={banner}
+        soundOn={soundOn}
+        onPause={() => ctl.current.togglePause()}
+        onRestart={() => ctl.current.restart()}
+        onSound={() => toggleSetting('sound')}
+        onJump={() => ctl.current.jump()}
+        onSlide={(on) => ctl.current.slide(on)}
+      />
 
-      {banner && (
-        <div className="pointer-events-none absolute left-1/2 top-24 -translate-x-1/2 rounded-2xl border border-ice/50 bg-panel/90 px-8 py-3 text-center backdrop-blur">
-          <div className="text-[10px] font-bold tracking-widest text-ice">LEVEL UP</div>
-          <div className="font-display text-xl font-bold">{banner}</div>
+      {count > 0 && (
+        <div className="pointer-events-none absolute inset-0 grid place-items-center">
+          <span className="font-display text-8xl font-black text-ice glow-ice">{count}</span>
         </div>
       )}
 
+      {paused && !over && (
+        <PauseMenu
+          onResume={() => ctl.current.togglePause()}
+          onRestart={() => ctl.current.restart()}
+          onMenu={() => setScreen('home')}
+        />
+      )}
+
       {over && (
-        <div className="absolute inset-0 grid place-items-center bg-black/60">
-          <div className="w-80 rounded-3xl border border-ice/30 bg-panel p-6 text-center shadow-[0_0_60px_rgba(34,211,238,0.15)]">
-            <div className="text-xs font-bold tracking-[0.3em] text-blood">RUN TERMINATED</div>
-            <div className="mt-1 font-display text-3xl font-black glow-neon">GAME OVER</div>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-xl border border-white/10 p-2"><div className="text-[10px] text-white/60">DISTANCE</div><div className="font-display text-xl text-neon">{over.dist}m</div></div>
-              <div className="rounded-xl border border-white/10 p-2"><div className="text-[10px] text-white/60">ORBS</div><div className="font-display text-xl text-orb">{over.orbs}</div></div>
-              <div className="rounded-xl border border-white/10 p-2"><div className="text-[10px] text-white/60">SCORE</div><div className="font-display text-xl text-ice">{over.score}</div></div>
-              <div className="rounded-xl border border-white/10 p-2"><div className="text-[10px] text-white/60">LEVEL</div><div className="font-display text-xl">Lv.{over.level}</div></div>
-            </div>
-            <div className="mt-3 text-sm text-white/70">All-time best: <span className="font-display text-orb">{over.best}</span></div>
-            <button onClick={() => restartRef.current()} className="mt-4 w-full rounded-xl bg-gradient-to-r from-neon to-ice py-3 font-display font-bold tracking-widest">PLAY AGAIN</button>
-            <button onClick={() => setScreen('home')} className="mt-2 w-full rounded-xl border border-white/15 py-2 text-sm font-bold tracking-widest">MENU</button>
-            <div className="mt-3 text-xs text-white/50">Press <kbd className="rounded bg-white/10 px-1.5">SPACE</kbd> to restart</div>
-          </div>
-        </div>
+        <GameOverCard
+          data={over}
+          onRestart={() => ctl.current.restart()}
+          onMenu={() => setScreen('home')}
+          onSkins={() => openModal('skins')}
+        />
       )}
     </div>
   )
