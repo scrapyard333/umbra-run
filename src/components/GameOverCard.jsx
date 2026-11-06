@@ -1,4 +1,4 @@
-import { Coins, Flame, Trophy, RotateCw, Shirt, Home, Zap, Star } from 'lucide-react'
+import { Coins, Flame, Trophy, RotateCw, Shirt, Home, Zap, Star, Award } from 'lucide-react'
 import Confetti from './Confetti.jsx'
 
 function Tile({ label, children }) {
@@ -11,7 +11,7 @@ function Tile({ label, children }) {
 }
 
 export default function GameOverCard({ data, onRestart, onMenu, onSkins }) {
-  const celebrate = data.level >= 2 || data.newBest
+  const celebrate = data.level >= 2 || data.newBest || data.unlocked?.length > 0
   return (
     <div className="absolute inset-0 grid place-items-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm">
       {celebrate && <Confetti />}
@@ -41,6 +41,17 @@ export default function GameOverCard({ data, onRestart, onMenu, onSkins }) {
           <Tile label="TOTAL SCORE"><span className="font-display text-3xl font-black text-ice">{data.score}</span></Tile>
           <Tile label="LEVEL REACHED"><Flame size={20} className="text-orange-400" /><span className="font-display text-2xl font-black">Lv.{data.level}</span></Tile>
         </div>
+
+        {data.unlocked?.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {data.unlocked.map((a) => (
+              <div key={a.id} className="flex items-center justify-between rounded-2xl border border-orb/40 bg-orb/10 px-4 py-2">
+                <span className="flex items-center gap-2 text-sm font-bold"><Award size={16} className="text-orb" /> {a.title}</span>
+                <span className="font-display text-sm font-black text-orb">+{a.reward}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-void/60 px-4 py-3">
           <span className="flex items-center gap-2 text-sm text-white/80"><Trophy size={16} className="text-orb" /> All-Time Best</span>

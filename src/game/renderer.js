@@ -14,7 +14,9 @@ let skyRgb = null
 
 export const fx = {
   list: [],
+  scale: 1,
   burst(x, y, color, n = 10, speed = 260) {
+    n = Math.ceil(n * this.scale)
     for (let i = 0; i < n; i++) {
       const a = Math.random() * TAU
       const s = speed * (0.3 + Math.random() * 0.7)
@@ -22,7 +24,8 @@ export const fx = {
     }
   },
   dust(x, y) {
-    for (let i = 0; i < 6; i++) {
+    const n = Math.ceil(6 * this.scale)
+    for (let i = 0; i < n; i++) {
       this.list.push({ x: x + (Math.random() - 0.5) * 20, y, vx: -60 - Math.random() * 120, vy: -Math.random() * 90, life: 0.4, max: 0.4, r: 2 + Math.random() * 3, color: '#b8a2ff' })
     }
   },
@@ -280,7 +283,7 @@ function tube(ctx, x1, y1, x2, y2, accent, wOuter, wInner) {
   ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
 }
 
-function drawPlayer(ctx, eng, accent) {
+export function drawPlayer(ctx, eng, accent) {
   const p = eng.p
   const cx = PLAYER_X + PLAYER_W / 2
   const air = !p.grounded

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Engine, WORLD_H, GROUND_Y, PLAYER_X, PLAYER_W } from '../game/engine.js'
 import { draw, fx } from '../game/renderer.js'
-import { LEVELS, SKINS } from '../game/constants.js'
+import { LEVELS, SKINS, QUALITY } from '../game/constants.js'
 import { useGame } from '../store'
 import Hud from './Hud.jsx'
 import GameOverCard from './GameOverCard.jsx'
@@ -100,6 +100,7 @@ export default function GameScreen() {
         eng.update(step)
         eng.drain().forEach(onEvent)
       }
+      fx.scale = QUALITY[useGame.getState().settings.quality] ?? 1
       draw(ctx, eng, { w, h: WORLD_H, scale, dt: step, accent: accentOf() })
 
       hudT += step
@@ -111,8 +112,14 @@ export default function GameScreen() {
         handled = true
         const st = useGame.getState()
         const prevBest = st.best
-        st.submitRun(eng.score)
-        st.addOrbs(eng.orbCount)
+        const unlocked = st.finishRun({
+          score: eng.score,
+          dist: Math.floor(eng.distM),
+          orbs: eng.orbCount,
+          doubleJumps: eng.doubleJumps,
+          slides: eng.slides,
+          level: eng.level + 1,
+        })
         setHud({ dist: Math.floor(eng.distM), score: eng.score, orbs: eng.orbCount, level: eng.level })
         setOver({
           dist: Math.floor(eng.distM),
@@ -122,6 +129,7 @@ export default function GameScreen() {
           levelName: LEVELS[eng.level].name,
           best: Math.max(prevBest, eng.score),
           newBest: eng.score > prevBest,
+          unlocked,
         })
       }
       raf = requestAnimationFrame(loop)

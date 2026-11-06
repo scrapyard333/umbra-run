@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Play, Maximize, Trophy, Coins, Shirt, Calendar, Medal, Settings, Sparkles } from 'lucide-react'
 import { useGame } from '../store'
+import { isDailyReady } from '../game/meta.js'
 
 function Chip({ icon: Icon, label, value, color }) {
   return (
@@ -26,8 +27,13 @@ export default function HomeScreen() {
   const best = useGame((s) => s.best)
   const orbs = useGame((s) => s.orbs)
   const modal = useGame((s) => s.modal)
+  const daily = useGame((s) => s.daily)
   const setScreen = useGame((s) => s.setScreen)
   const openModal = useGame((s) => s.openModal)
+  const refreshDaily = useGame((s) => s.refreshDaily)
+  const dailyReady = isDailyReady(daily)
+
+  useEffect(() => { refreshDaily() }, [refreshDaily])
 
   useEffect(() => {
     const onKey = (e) => {
@@ -89,7 +95,10 @@ export default function HomeScreen() {
       <nav className="flex gap-1 rounded-2xl border border-white/10 bg-panel/85 p-2 backdrop-blur sm:gap-4 sm:px-6">
         {DOCK.map(({ id, label, icon: Icon, color }) => (
           <button key={id} onClick={() => openModal(id)} className="flex w-16 flex-col items-center gap-1 rounded-xl py-2 transition hover:bg-white/5 sm:w-24">
-            <Icon size={22} className={color} />
+            <span className="relative">
+              <Icon size={22} className={color} />
+              {id === 'daily' && dailyReady && <span className="absolute -right-1.5 -top-1 h-2.5 w-2.5 animate-pulse rounded-full bg-orb" />}
+            </span>
             <span className="text-[10px] font-bold tracking-widest">{label}</span>
           </button>
         ))}

@@ -21,3 +21,5 @@ export const levelAt = (meters) => {
   for (let i = 0; i < LEVELS.length; i++) if (meters >= LEVELS[i].at) idx = i
   return idx
 }
+
+export const QUALITY = { high: 1, medium: 0.5, low: 0.15 }
