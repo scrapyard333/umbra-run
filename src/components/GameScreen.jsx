@@ -24,7 +24,8 @@ export default function GameScreen() {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     const eng = new Engine({ seed: (Math.random() * 1e9) | 0 })
-    const accentOf = () => (SKINS.find((k) => k.id === useGame.getState().skin) || SKINS[0]).accent
+    const skinOf = () => SKINS.find((k) => k.id === useGame.getState().skin) || SKINS[0]
+    const accentOf = () => skinOf().accent
     let w = 1200, scale = 1, raf = 0, last = performance.now(), hudT = 0
     let handled = false, bannerTimer = 0, isPaused = false, resumeIn = 0, shown = 0
 
@@ -101,7 +102,7 @@ export default function GameScreen() {
         eng.drain().forEach(onEvent)
       }
       fx.scale = QUALITY[useGame.getState().settings.quality] ?? 1
-      draw(ctx, eng, { w, h: WORLD_H, scale, dt: step, accent: accentOf() })
+      draw(ctx, eng, { w, h: WORLD_H, scale, dt: step, skin: skinOf() })
 
       hudT += step
       if (hudT > 0.1) {

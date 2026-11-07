@@ -1,5 +1,6 @@
 import { GROUND_Y, PLAYER_X, PLAYER_W } from './engine.js'
-import { LEVELS } from './constants.js'
+import { LEVELS, SKINS } from './constants.js'
+import { drawCharacter } from './characters.js'
 
 const TAU = Math.PI * 2
 const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s) }
@@ -273,23 +274,12 @@ function drawObstacles(ctx, eng, lvl, clock) {
   }
 }
 
-function tube(ctx, x1, y1, x2, y2, accent, wOuter, wInner) {
-  ctx.lineCap = 'round'
-  ctx.strokeStyle = accent
-  ctx.lineWidth = wOuter
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
-  ctx.strokeStyle = '#0b0818'
-  ctx.lineWidth = wInner
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
-}
-
-export function drawPlayer(ctx, eng, accent) {
+export function drawPlayer(ctx, eng, skin) {
   const p = eng.p
+  const accent = skin.accent
   const cx = PLAYER_X + PLAYER_W / 2
-  const air = !p.grounded
-  const ph = eng.time * 16 * (eng.speed / 420)
+  const sy = p.y - (p.sliding ? 14 : 30)
 
-  const sy = p.y - 30
   const trail = ctx.createLinearGradient(cx - 160, 0, cx, 0)
   trail.addColorStop(0, rgba(accent, 0))
   trail.addColorStop(1, rgba(accent, 0.7))
@@ -298,49 +288,14 @@ export function drawPlayer(ctx, eng, accent) {
   ctx.beginPath(); ctx.moveTo(cx - 160, sy + 6); ctx.lineTo(cx - 8, sy); ctx.stroke()
 
   ctx.save()
-  if (p.sliding) {
-    ctx.translate(cx + 10, p.y - 6)
-    ctx.rotate(-1.3)
-  } else if (p.flipping) {
+  if (p.flipping) {
     ctx.translate(cx, p.y - 30)
     ctx.rotate(Math.min(1, p.flipT / 0.55) * TAU)
     ctx.translate(0, 30)
   } else {
     ctx.translate(cx, p.y)
   }
-
-  const limbs = (k) => {
-    const a = ph + k * Math.PI
-    const fx = air ? (k ? 10 : -9) : Math.sin(a) * 14
-    const fy = air ? (k ? -8 : -3) : -Math.max(0, Math.cos(a)) * 9
-    const ax = air ? (k ? 15 : -13) : -Math.sin(a) * 13 + 3
-    const ay = air ? (k ? -52 : -50) : -22 - Math.abs(Math.cos(a)) * 4
-    return { fx, fy, ax, ay }
-  }
-  const back = limbs(1), front = limbs(0)
-
-  tube(ctx, 0, -40, back.ax, back.ay, accent, 8, 5)
-  tube(ctx, 0, -20, back.fx, back.fy, accent, 10, 7)
-
-  ctx.fillStyle = '#0b0818'
-  ctx.strokeStyle = accent
-  ctx.lineWidth = 2
-  ctx.beginPath(); ctx.roundRect(-8, -44, 16, 26, 5); ctx.fill(); ctx.stroke()
-  ctx.beginPath(); ctx.moveTo(-8, -26); ctx.lineTo(8, -26); ctx.stroke()
-  ctx.beginPath(); ctx.arc(0, -52, 9, 0, TAU); ctx.fill(); ctx.stroke()
-  ctx.fillStyle = accent
-  ctx.fillRect(-1, -55, 11, 4)
-
-  ctx.strokeStyle = rgba(accent, 0.85)
-  ctx.lineWidth = 4
-  ctx.lineCap = 'round'
-  ctx.beginPath()
-  ctx.moveTo(-5, -46)
-  ctx.quadraticCurveTo(-26, -46 + Math.sin(eng.time * 12) * 8, -46 - eng.speed * 0.03, -40 + Math.sin(eng.time * 12 + 1) * 10)
-  ctx.stroke()
-
-  tube(ctx, 0, -20, front.fx, front.fy, accent, 10, 7)
-  tube(ctx, 0, -40, front.ax, front.ay, accent, 8, 5)
+  drawCharacter(ctx, skin.id, { time: eng.time, speed: eng.speed, air: !p.grounded, sliding: p.sliding }, accent)
   ctx.restore()
 }
 
@@ -359,7 +314,7 @@ function drawParticles(ctx, dt) {
 }
 
 export function draw(ctx, eng, o) {
-  const { w, h = 600, scale = 1, dt = 0.016, accent = '#a855f7' } = o
+  const { w, h = 600, scale = 1, dt = 0.016, skin = SKINS[0] } = o
   const clock = performance.now() / 1000
   const lvl = LEVELS[eng.level]
   ctx.setTransform(scale, 0, 0, scale, 0, 0)
@@ -371,6 +326,6 @@ export function draw(ctx, eng, o) {
   drawGround(ctx, w, h, eng, lvl)
   drawOrbs(ctx, eng, clock)
   drawObstacles(ctx, eng, lvl, clock)
-  if (eng.state !== 'dead') drawPlayer(ctx, eng, accent)
+  if (eng.state !== 'dead') drawPlayer(ctx, eng, skin)
   drawParticles(ctx, dt)
 }

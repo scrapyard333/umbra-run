@@ -1,8 +1,8 @@
 export const SKINS = [
-  { id: 'umbra', name: 'Umbra Monk', rarity: 'CLASSIC', price: 0, accent: '#a855f7', desc: 'A silent wanderer wrapped in midnight silk and violet mist.' },
-  { id: 'glacier', name: 'Glacier Ghost', rarity: 'RARE', price: 250, accent: '#22d3ee', desc: 'Frozen light trails behind this icy night-walker.' },
-  { id: 'ember', name: 'Ember Wraith', rarity: 'EPIC', price: 500, accent: '#ef4444', desc: 'Born in the dying coals of a thousand lanterns.' },
-  { id: 'solar', name: 'Solar Regent', rarity: 'LEGENDARY', price: 1000, accent: '#facc15', desc: 'A crowned sprinter who carries a piece of the sun.' },
+  { id: 'umbra', name: 'Umbra Monk', rarity: 'CLASSIC', price: 0, accent: '#a855f7', desc: 'A silent shinobi in midnight silk, katana on his back and a violet scarf streaming behind.' },
+  { id: 'glacier', name: 'Glacier Ghost', rarity: 'RARE', price: 250, accent: '#22d3ee', desc: 'A cyber-runner in a frost-lit visor suit. Ribbons of light trail from every stride.' },
+  { id: 'ember', name: 'Ember Wraith', rarity: 'EPIC', price: 500, accent: '#ef4444', desc: 'A horned wraith wrapped in living flame. The night burns wherever it runs.' },
+  { id: 'solar', name: 'Solar Regent', rarity: 'LEGENDARY', price: 1000, accent: '#facc15', desc: 'A crowned sprinter with a halo and a royal cape, carrying a piece of the sun.' },
 ]
 
 export const PX_PER_M = 50

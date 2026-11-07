@@ -30,7 +30,7 @@ export default function SkinsModal() {
   return (
     <ModalShell icon={Shirt} title="Skin Vault" subtitle="Unlock unique silhouettes, trails & energy auras" accent={skin.accent} maxWidth="max-w-2xl" right={<OrbPill value={orbs} />}>
       <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-void/50 p-4 sm:flex-row sm:items-center">
-        <div className="mx-auto"><SkinPreview accent={skin.accent} /></div>
+        <div className="mx-auto"><SkinPreview skin={skin} /></div>
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-display text-2xl font-black">{skin.name}</h3>
