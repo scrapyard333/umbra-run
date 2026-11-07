@@ -53,6 +53,7 @@ export function applyRun(s, run) {
       stats, daily, history,
       achievements: [...s.achievements, ...newly.map((a) => a.id)],
       best: Math.max(s.best, run.score),
+      ghost: run.samples && run.score > (s.ghost?.score ?? 0) ? { score: run.score, samples: run.samples } : s.ghost ?? null,
       orbs: s.orbs + run.orbs + bonus,
     },
     newly,

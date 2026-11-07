@@ -1,5 +1,5 @@
-import { GROUND_Y, PLAYER_X, PLAYER_W } from './engine.js'
-import { LEVELS, SKINS } from './constants.js'
+import { GROUND_Y, PLAYER_X, PLAYER_W, MAGNET_RANGE } from './engine.js'
+import { LEVELS, SKINS, PX_PER_M } from './constants.js'
 import { drawCharacter } from './characters.js'
 
 const TAU = Math.PI * 2
@@ -313,6 +313,106 @@ function drawParticles(ctx, dt) {
   ctx.globalAlpha = 1
 }
 
+const PICK_COLOR = { shield: '#22d3ee', magnet: '#f87171', slow: '#a78bfa' }
+
+function drawPickups(ctx, eng, clock) {
+  for (const k of eng.pickups) {
+    const col = PICK_COLOR[k.kind]
+    const y = k.y + Math.sin(clock * 3 + k.x * 0.01) * 4
+    const g = ctx.createRadialGradient(k.x, y, 2, k.x, y, 38)
+    g.addColorStop(0, rgba(col, 0.5))
+    g.addColorStop(1, rgba(col, 0))
+    ctx.fillStyle = g
+    ctx.beginPath(); ctx.arc(k.x, y, 38, 0, TAU); ctx.fill()
+    ctx.fillStyle = 'rgba(8,6,20,0.9)'
+    ctx.strokeStyle = col
+    ctx.lineWidth = 2.5
+    ctx.shadowColor = col
+    ctx.shadowBlur = 14
+    ctx.beginPath(); ctx.arc(k.x, y, k.r, 0, TAU); ctx.fill(); ctx.stroke()
+    ctx.shadowBlur = 0
+    ctx.save()
+    ctx.translate(k.x, y)
+    ctx.lineWidth = 2.2
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    if (k.kind === 'shield') {
+      ctx.beginPath()
+      ctx.moveTo(0, -9); ctx.lineTo(8, -5); ctx.lineTo(7, 3); ctx.lineTo(0, 9); ctx.lineTo(-7, 3); ctx.lineTo(-8, -5)
+      ctx.closePath(); ctx.stroke()
+    } else if (k.kind === 'magnet') {
+      ctx.lineWidth = 3.4
+      ctx.beginPath()
+      ctx.moveTo(-6, 7); ctx.lineTo(-6, 0); ctx.arc(0, 0, 6, Math.PI, 0); ctx.lineTo(6, 7)
+      ctx.stroke()
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(-8, 5, 4, 3); ctx.fillRect(4, 5, 4, 3)
+    } else {
+      ctx.beginPath(); ctx.arc(0, 0, 8, 0, TAU); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -5); ctx.moveTo(0, 0); ctx.lineTo(4, 2); ctx.stroke()
+    }
+    ctx.restore()
+  }
+}
+
+function drawEffects(ctx, eng, clock) {
+  const cx = PLAYER_X + PLAYER_W / 2
+  const cy = eng.p.y - (eng.p.sliding ? 14 : 30)
+  if (eng.magnet > 0) {
+    for (let i = 0; i < 3; i++) {
+      const t = (clock * 1.3 + i / 3) % 1
+      ctx.strokeStyle = rgba('#f87171', t * 0.35)
+      ctx.lineWidth = 2
+      ctx.beginPath(); ctx.arc(cx, cy, (1 - t) * MAGNET_RANGE + 24, 0, TAU); ctx.stroke()
+    }
+  }
+  if (eng.shield || eng.grace > 0) {
+    const flick = eng.grace > 0 && Math.sin(clock * 40) > 0 ? 0.25 : 1
+    const g = ctx.createRadialGradient(cx, cy, 10, cx, cy, 48)
+    g.addColorStop(0, 'rgba(34,211,238,0)')
+    g.addColorStop(1, 'rgba(34,211,238,' + 0.28 * flick + ')')
+    ctx.fillStyle = g
+    ctx.beginPath(); ctx.arc(cx, cy, 48, 0, TAU); ctx.fill()
+    ctx.strokeStyle = 'rgba(165,243,252,' + 0.85 * flick + ')'
+    ctx.lineWidth = 2.5
+    ctx.shadowColor = '#22d3ee'
+    ctx.shadowBlur = 12
+    ctx.beginPath(); ctx.arc(cx, cy, 46, 0, TAU); ctx.stroke()
+    ctx.shadowBlur = 0
+  }
+}
+
+function drawGhost(ctx, eng, skin, w) {
+  const g = eng.ghostState && eng.ghostState()
+  if (!g) return
+  const dx = g.x - eng.x
+  ctx.font = 'bold 12px Rajdhani, sans-serif'
+  ctx.fillStyle = 'rgba(203,213,225,0.8)'
+  if (dx > w - 60) {
+    ctx.textAlign = 'right'
+    ctx.fillText('GHOST +' + Math.round(dx / PX_PER_M) + 'm  >', w - 12, GROUND_Y - 90)
+    ctx.textAlign = 'left'
+    return
+  }
+  if (dx < -120) {
+    ctx.fillText('< GHOST -' + Math.round(-dx / PX_PER_M) + 'm', 12, GROUND_Y - 90)
+    return
+  }
+  const fake = {
+    p: { y: g.y, vy: 0, grounded: g.y >= GROUND_Y - 1, sliding: g.s === 1, flipping: false, flipT: 0 },
+    time: eng.time,
+    speed: eng.speed,
+  }
+  ctx.save()
+  ctx.translate(dx, 0)
+  ctx.globalAlpha = 0.3
+  drawPlayer(ctx, fake, { id: skin.id, accent: '#cbd5e1' })
+  ctx.globalAlpha = 0.8
+  ctx.textAlign = 'center'
+  ctx.fillText('GHOST', PLAYER_X + PLAYER_W / 2, g.y - 80)
+  ctx.restore()
+}
+
 export function draw(ctx, eng, o) {
   const { w, h = 600, scale = 1, dt = 0.016, skin = SKINS[0] } = o
   const clock = performance.now() / 1000
@@ -326,6 +426,15 @@ export function draw(ctx, eng, o) {
   drawGround(ctx, w, h, eng, lvl)
   drawOrbs(ctx, eng, clock)
   drawObstacles(ctx, eng, lvl, clock)
-  if (eng.state !== 'dead') drawPlayer(ctx, eng, skin)
+  drawPickups(ctx, eng, clock)
+  drawGhost(ctx, eng, skin, w)
+  if (eng.state !== 'dead') {
+    drawPlayer(ctx, eng, skin)
+    drawEffects(ctx, eng, clock)
+  }
   drawParticles(ctx, dt)
+  if (eng.timeScale < 0.99) {
+    ctx.fillStyle = rgba('#6366f1', (1 - eng.timeScale) * 0.4)
+    ctx.fillRect(0, 0, w, h)
+  }
 }

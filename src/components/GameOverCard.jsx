@@ -58,6 +58,11 @@ export default function GameOverCard({ data, onRestart, onMenu, onSkins }) {
           <span className="font-display text-xl font-black text-orb">{data.best}</span>
         </div>
 
+        <div className="mt-3 flex items-center justify-center gap-5 text-xs font-bold tracking-widest text-white/60">
+          <span>BEST COMBO <span className="text-ice">x{data.bestMult}</span></span>
+          <span>NEAR MISSES <span className="text-ice">{data.nearMisses}</span></span>
+        </div>
+
         <button onClick={onRestart} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-neon to-ice py-4 font-display text-lg font-bold tracking-widest transition hover:brightness-110 active:scale-[0.98]">
           <RotateCw size={20} /> PLAY AGAIN
         </button>

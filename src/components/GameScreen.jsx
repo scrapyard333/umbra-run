@@ -1,22 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import { Engine, WORLD_H, GROUND_Y, PLAYER_X, PLAYER_W } from '../game/engine.js'
 import { draw, fx } from '../game/renderer.js'
-import { LEVELS, SKINS, QUALITY } from '../game/constants.js'
+import { LEVELS, SKINS, QUALITY, PX_PER_M } from '../game/constants.js'
+import { audio } from '../game/audio.js'
 import { useGame } from '../store'
 import Hud from './Hud.jsx'
 import GameOverCard from './GameOverCard.jsx'
 import PauseMenu from './PauseMenu.jsx'
 
+const PICKUP_COLOR = { shield: '#22d3ee', magnet: '#f87171', slow: '#a78bfa' }
+
 export default function GameScreen() {
   const canvasRef = useRef(null)
   const ctl = useRef({})
-  const [hud, setHud] = useState({ dist: 0, score: 0, orbs: 0, level: 0 })
+  const [hud, setHud] = useState({ dist: 0, score: 0, orbs: 0, level: 0, mult: 1, combo: 0, comboPct: 0, shield: false, magnet: 0, slow: 0, ghost: null })
   const [over, setOver] = useState(null)
   const [banner, setBanner] = useState(null)
   const [paused, setPaused] = useState(false)
   const [count, setCount] = useState(0)
-  const soundOn = useGame((s) => s.settings.sound)
-  const toggleSetting = useGame((s) => s.toggleSetting)
+  const soundOn = useGame((s) => s.settings.sound || s.settings.music)
+  const setAudio = useGame((s) => s.setAudio)
   const setScreen = useGame((s) => s.setScreen)
   const openModal = useGame((s) => s.openModal)
 
@@ -26,8 +29,26 @@ export default function GameScreen() {
     const eng = new Engine({ seed: (Math.random() * 1e9) | 0 })
     const skinOf = () => SKINS.find((k) => k.id === useGame.getState().skin) || SKINS[0]
     const accentOf = () => skinOf().accent
+    const loadGhost = () => { eng.ghost = useGame.getState().ghost?.samples ?? null }
+    loadGhost()
+
     let w = 1200, scale = 1, raf = 0, last = performance.now(), hudT = 0
     let handled = false, bannerTimer = 0, isPaused = false, resumeIn = 0, shown = 0
+    let lastSettings = useGame.getState().settings
+
+    const syncAudio = () => {
+      const s = useGame.getState().settings
+      audio.configure({ sound: s.sound, music: s.music })
+    }
+    audio.unlock()
+    syncAudio()
+    audio.startMusic()
+
+    const showBanner = (label, text, ms = 2200) => {
+      setBanner({ label, text })
+      clearTimeout(bannerTimer)
+      bannerTimer = setTimeout(() => setBanner(null), ms)
+    }
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -42,9 +63,27 @@ export default function GameScreen() {
 
     const locked = () => isPaused || resumeIn > 0
 
+    const snap = () => {
+      const g = eng.ghostState()
+      return {
+        dist: Math.floor(eng.distM),
+        score: eng.score,
+        orbs: eng.orbCount,
+        level: eng.level,
+        mult: eng.mult,
+        combo: eng.combo,
+        comboPct: eng.combo > 0 ? eng.comboT / 2.5 : 0,
+        shield: eng.shield,
+        magnet: eng.magnet,
+        slow: eng.slow,
+        ghost: g ? Math.round((g.x - eng.x) / PX_PER_M) : null,
+      }
+    }
+
     const restart = () => {
       eng.seed = (Math.random() * 1e9) | 0
       eng.reset()
+      loadGhost()
       fx.clear()
       handled = false
       isPaused = false
@@ -55,12 +94,14 @@ export default function GameScreen() {
       setBanner(null)
       setPaused(false)
       setCount(0)
+      audio.resume()
+      audio.startMusic()
     }
 
     const togglePause = () => {
       if (eng.state !== 'running') return
-      if (isPaused) { isPaused = false; resumeIn = 3; shown = 3; setCount(3) }
-      else { isPaused = true; resumeIn = 0; shown = 0; setCount(0) }
+      if (isPaused) { isPaused = false; resumeIn = 3; shown = 3; setCount(3); audio.resume() }
+      else { isPaused = true; resumeIn = 0; shown = 0; setCount(0); audio.suspend() }
       setPaused(isPaused)
       last = performance.now()
     }
@@ -72,16 +113,44 @@ export default function GameScreen() {
       slide: (on) => { if (on && locked()) return; eng.setSlide(on) },
     }
 
+    const achieved = (list) => {
+      if (list && list.length) showBanner('ACHIEVEMENT', `${list[0].title}  +${list[0].reward}`, 3200)
+    }
+
     const onEvent = (e) => {
       const cx = PLAYER_X + PLAYER_W / 2
-      if (e.type === 'jump' || e.type === 'land') fx.dust(cx, GROUND_Y)
-      else if (e.type === 'double') fx.burst(cx, eng.p.y - 30, accentOf(), 14)
-      else if (e.type === 'orb') fx.burst(e.x, e.y, '#facc15', 8, 180)
-      else if (e.type === 'die') fx.burst(cx, eng.p.y - 30, '#ef4444', 40, 340)
-      else if (e.type === 'levelup') {
-        setBanner(LEVELS[e.level].name)
-        clearTimeout(bannerTimer)
-        bannerTimer = setTimeout(() => setBanner(null), 2200)
+      const st = useGame.getState()
+      switch (e.type) {
+        case 'jump': fx.dust(cx, GROUND_Y); audio.sfx('jump'); break
+        case 'land': fx.dust(cx, GROUND_Y); audio.sfx('land'); break
+        case 'double': fx.burst(cx, eng.p.y - 30, accentOf(), 14); audio.sfx('double'); break
+        case 'orb': fx.burst(e.x, e.y, '#facc15', 8, 180); audio.sfx('orb', e.mult); break
+        case 'combo': audio.sfx('combo', e.mult); break
+        case 'nearmiss':
+          fx.burst(e.x, e.y, '#ffffff', 10, 220)
+          audio.sfx('nearmiss')
+          showBanner('NEAR MISS', `+${25 * eng.mult}`, 1200)
+          break
+        case 'pickup':
+          fx.burst(e.x, e.y, PICKUP_COLOR[e.kind], 16, 260)
+          audio.sfx(e.kind === 'slow' ? 'slow' : e.kind)
+          break
+        case 'shieldhit':
+          fx.burst(PLAYER_X + 17, eng.p.y - 30, '#22d3ee', 24, 320)
+          audio.sfx('shieldhit')
+          achieved(st.addStat('shieldHits'))
+          break
+        case 'slowstart': achieved(st.addStat('slowUses')); break
+        case 'die':
+          fx.burst(cx, eng.p.y - 30, '#ef4444', 40, 340)
+          audio.sfx('die')
+          audio.stopMusic()
+          break
+        case 'levelup':
+          showBanner('LEVEL UP', LEVELS[e.level].name)
+          audio.sfx('levelup')
+          break
+        default: break
       }
     }
 
@@ -100,14 +169,22 @@ export default function GameScreen() {
       if (step > 0) {
         eng.update(step)
         eng.drain().forEach(onEvent)
+        audio.setTempo(100 + ((eng.speed - 420) / 460) * 40, eng.timeScale, eng.level)
       }
-      fx.scale = QUALITY[useGame.getState().settings.quality] ?? 1
+
+      const cur = useGame.getState().settings
+      if (cur !== lastSettings) {
+        lastSettings = cur
+        syncAudio()
+      }
+
+      fx.scale = QUALITY[cur.quality] ?? 1
       draw(ctx, eng, { w, h: WORLD_H, scale, dt: step, skin: skinOf() })
 
       hudT += step
       if (hudT > 0.1) {
         hudT = 0
-        setHud({ dist: Math.floor(eng.distM), score: eng.score, orbs: eng.orbCount, level: eng.level })
+        setHud(snap())
       }
       if (eng.state === 'dead' && !handled) {
         handled = true
@@ -120,8 +197,9 @@ export default function GameScreen() {
           doubleJumps: eng.doubleJumps,
           slides: eng.slides,
           level: eng.level + 1,
+          samples: eng.rec,
         })
-        setHud({ dist: Math.floor(eng.distM), score: eng.score, orbs: eng.orbCount, level: eng.level })
+        setHud(snap())
         setOver({
           dist: Math.floor(eng.distM),
           orbs: eng.orbCount,
@@ -130,6 +208,8 @@ export default function GameScreen() {
           levelName: LEVELS[eng.level].name,
           best: Math.max(prevBest, eng.score),
           newBest: eng.score > prevBest,
+          bestMult: eng.bestMult,
+          nearMisses: eng.nearMisses,
           unlocked,
         })
       }
@@ -167,6 +247,8 @@ export default function GameScreen() {
     return () => {
       cancelAnimationFrame(raf)
       clearTimeout(bannerTimer)
+      audio.stopMusic()
+      audio.resume()
       window.removeEventListener('resize', resize)
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
@@ -185,7 +267,7 @@ export default function GameScreen() {
         soundOn={soundOn}
         onPause={() => ctl.current.togglePause()}
         onRestart={() => ctl.current.restart()}
-        onSound={() => toggleSetting('sound')}
+        onSound={() => setAudio(!useGame.getState().settings.sound && !useGame.getState().settings.music)}
         onJump={() => ctl.current.jump()}
         onSlide={(on) => ctl.current.slide(on)}
       />

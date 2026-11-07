@@ -13,6 +13,7 @@ const initial = () => ({
   achievements: [],
   daily: dailyFor(todayKey()),
   history: [],
+  ghost: null,
 })
 
 export const useGame = create(
@@ -57,6 +58,7 @@ export const useGame = create(
       },
 
       toggleSetting: (key) => set((s) => ({ settings: { ...s.settings, [key]: !s.settings[key] } })),
+      setAudio: (on) => set((s) => ({ settings: { ...s.settings, sound: on, music: on } })),
       setQuality: (quality) => set((s) => ({ settings: { ...s.settings, quality } })),
       resetProgress: () => set({ ...initial() }),
     }),
@@ -64,7 +66,7 @@ export const useGame = create(
       name: 'umbra-run-save',
       partialize: (s) => ({
         best: s.best, orbs: s.orbs, skin: s.skin, owned: s.owned, settings: s.settings,
-        stats: s.stats, achievements: s.achievements, daily: s.daily, history: s.history,
+        stats: s.stats, achievements: s.achievements, daily: s.daily, history: s.history, ghost: s.ghost,
       }),
     },
   ),
