@@ -4,8 +4,9 @@ import DailyModal from './modals/DailyModal.jsx'
 import TrophiesModal from './modals/TrophiesModal.jsx'
 import RanksModal from './modals/RanksModal.jsx'
 import SettingsModal from './modals/SettingsModal.jsx'
+import WorldModal from './modals/WorldModal.jsx'
 
-const MODALS = { skins: SkinsModal, daily: DailyModal, trophies: TrophiesModal, ranks: RanksModal, settings: SettingsModal }
+const MODALS = { world: WorldModal, skins: SkinsModal, daily: DailyModal, trophies: TrophiesModal, ranks: RanksModal, settings: SettingsModal }
 
 export default function ModalHost() {
   const modal = useGame((s) => s.modal)

@@ -1,4 +1,5 @@
 import { PX_PER_M, ORB_VALUE, levelAt } from './constants.js'
+import { biomeAt } from './biomes.js'
 
 export const WORLD_H = 600
 export const GROUND_Y = 500
@@ -34,6 +35,7 @@ export class Engine {
     this.seed = seed
     this.width = width
     this.ghost = null
+    this.biomeMode = 'auto'
     this.reset()
   }
 
@@ -45,6 +47,7 @@ export class Engine {
     this.x = 0
     this.speed = 420
     this.level = 0
+    this.zone = null
     this.orbCount = 0
     this.points = 0
     this.doubleJumps = 0
@@ -74,6 +77,7 @@ export class Engine {
   }
 
   get distM() { return this.x / PX_PER_M }
+  get biome() { return biomeAt(this.distM, this.biomeMode) }
   get score() { return Math.floor(this.distM) + this.points }
   get box() {
     const h = this.p.sliding ? SLIDE_H : STAND_H
@@ -266,6 +270,13 @@ export class Engine {
 
     const lv = levelAt(this.distM)
     if (lv > this.level) { this.level = lv; this.emit('levelup', { level: lv }) }
+
+    const zone = this.biome.active
+    if (zone !== this.zone) {
+      const first = this.zone === null
+      this.zone = zone
+      if (!first) this.emit('zonechange', { id: zone })
+    }
 
     this.recT += dt
     while (this.recT >= REC_DT) {

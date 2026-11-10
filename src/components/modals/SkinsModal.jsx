@@ -41,7 +41,7 @@ export default function SkinsModal() {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
         {SKINS.map((k) => {
           const has = owned.includes(k.id)
           return (

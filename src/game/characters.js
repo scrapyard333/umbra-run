@@ -288,8 +288,119 @@ function royal(ctx, r, p, c) {
   ctx.beginPath(); ctx.arc(a.ex, a.ey, 4.5, 0, TAU); ctx.fill()
 }
 
-const DRAWERS = { umbra: shinobi, glacier: cyber, ember: oni, solar: royal }
-const BODY = { umbra: '#0b0818', glacier: '#06131d', ember: '#16070a', solar: '#150e03' }
+function kunai(ctx, x, y, dx, dy) {
+  const L = Math.hypot(dx, dy) || 1
+  const ux = dx / L, uy = dy / L
+  ctx.fillStyle = '#A6A9B0'
+  ctx.beginPath()
+  ctx.moveTo(x + ux * 9, y + uy * 9)
+  ctx.lineTo(x - uy * 1.7, y + ux * 1.7)
+  ctx.lineTo(x + uy * 1.7, y - ux * 1.7)
+  ctx.closePath(); ctx.fill()
+  ctx.strokeStyle = '#454950'
+  ctx.lineWidth = 1
+  ctx.beginPath(); ctx.arc(x - ux * 1.6, y - uy * 1.6, 1.5, 0, TAU); ctx.stroke()
+}
+
+function kysora(ctx, r, p, c) {
+  const BLK = '#111214', CHR = '#292B30', GUN = '#454950', SIL = '#A6A9B0', STL = '#737984'
+  const cc = { accent: '#3b3e46', body: BLK }
+  const f = Math.sin(p.time * 9)
+  const T = r.at(-4, -43)
+  const len = 34 + p.speed * 0.02
+
+  poly(ctx, floor([
+    [T.x, T.y], [T.x - 10, T.y - 2 + f * 2], [T.x - len * 0.55, T.y + 3 + f * 3], [T.x - len, T.y + 10 + f * 5],
+    [T.x - len * 0.85, T.y + 22 + f * 4], [T.x - len * 0.5, T.y + 28 + f * 3], [T.x - 12, T.y + 22], [T.x - 3, T.y + 16],
+  ]), '#17181c', '#454950', 1)
+  ctx.strokeStyle = 'rgba(115,121,132,0.35)'
+  ctx.lineWidth = 1
+  for (const k of [0.3, 0.55, 0.8]) {
+    ctx.beginPath()
+    ctx.moveTo(T.x - 6, T.y + 6 + k * 14)
+    ctx.quadraticCurveTo(T.x - len * 0.5, T.y + 6 + k * 12 + f * 3, T.x - len * (0.5 + k * 0.4), Math.min(-1, T.y + 10 + k * 16 + f * 4))
+    ctx.stroke()
+  }
+
+  const armGuard = (side) => {
+    const a = arm(ctx, r, side, cc, 8, 6)
+    const sx = a.kx + (a.ex - a.kx) * 0.15, sy = a.ky + (a.ey - a.ky) * 0.15
+    const ex = a.kx + (a.ex - a.kx) * 0.82, ey = a.ky + (a.ey - a.ky) * 0.82
+    stroke2(ctx, [[sx, sy], [ex, ey]], SIL, GUN, 7, 5)
+    ctx.fillStyle = BLK; ctx.strokeStyle = '#454950'; ctx.lineWidth = 1
+    ctx.beginPath(); ctx.arc(a.ex, a.ey, 3.2, 0, TAU); ctx.fill(); ctx.stroke()
+    return a
+  }
+  const legGuard = (side, daggers) => {
+    const k = leg(ctx, r, side, cc, 10, 8)
+    const sx = k.kx + (k.ex - k.kx) * 0.12, sy = k.ky + (k.ey - k.ky) * 0.12
+    const ex = k.kx + (k.ex - k.kx) * 0.84, ey = k.ky + (k.ey - k.ky) * 0.84
+    stroke2(ctx, [[sx, sy], [ex, ey]], STL, GUN, 8, 6)
+    ctx.fillStyle = GUN; ctx.strokeStyle = SIL; ctx.lineWidth = 1
+    ctx.beginPath(); ctx.roundRect(k.kx - 3.6, k.ky - 3.6, 7.2, 7.2, 2.5); ctx.fill(); ctx.stroke()
+    ctx.fillStyle = BLK; ctx.strokeStyle = '#454950'; ctx.lineWidth = 1
+    ctx.beginPath(); ctx.ellipse(k.ex + 2, k.ey + 0.5, 5.2, 2.8, 0, 0, TAU); ctx.fill(); ctx.stroke()
+    if (daggers) {
+      const dx = k.kx - r.hip.x, dy = k.ky - r.hip.y
+      for (let i = 0; i < 3; i++) {
+        const u = 0.22 + i * 0.2
+        kunai(ctx, r.hip.x + dx * u + 4.5, r.hip.y + dy * u, dx, dy)
+      }
+    }
+    return k
+  }
+
+  armGuard(r.back)
+  legGuard(r.back, false)
+
+  r.body(ctx, () => {
+    const tg = ctx.createLinearGradient(-10, -44, 10, -19)
+    tg.addColorStop(0, CHR); tg.addColorStop(1, BLK)
+    poly(ctx, [[-10, -43], [10, -43], [7, -19], [-7, -19]], tg, '#454950', 1)
+
+    ctx.strokeStyle = CHR; ctx.lineWidth = 3
+    ctx.beginPath(); ctx.moveTo(-9, -42); ctx.lineTo(8, -24); ctx.moveTo(9, -42); ctx.lineTo(-8, -24); ctx.stroke()
+    ctx.strokeStyle = STL; ctx.lineWidth = 0.9
+    ctx.beginPath(); ctx.moveTo(-9, -42); ctx.lineTo(8, -24); ctx.moveTo(9, -42); ctx.lineTo(-8, -24); ctx.stroke()
+    ctx.fillStyle = SIL; ctx.fillRect(-2, -35, 4, 4)
+
+    ctx.fillStyle = CHR; ctx.fillRect(-8, -26, 16, 4)
+    ctx.fillStyle = SIL; ctx.fillRect(-2.5, -26, 5, 4)
+
+    ctx.strokeStyle = BLK; ctx.lineWidth = 4
+    ctx.beginPath(); ctx.moveTo(6, -22); ctx.lineTo(-9, -58); ctx.stroke()
+    ctx.strokeStyle = STL; ctx.lineWidth = 1
+    ctx.beginPath(); ctx.moveTo(6, -22); ctx.lineTo(-9, -58); ctx.stroke()
+    ctx.strokeStyle = BLK; ctx.lineWidth = 3.4
+    ctx.beginPath(); ctx.moveTo(-9, -58); ctx.lineTo(-13, -67); ctx.stroke()
+    ctx.fillStyle = SIL
+    ctx.beginPath(); ctx.arc(-9, -58, 2.4, 0, TAU); ctx.fill()
+
+    poly(ctx, [[-8, -58], [-19, -46 + f * 2], [-11, -41], [-5, -44]], '#17181c', '#454950', 1)
+
+    const hg = ctx.createLinearGradient(-9, -62, 9, -44)
+    hg.addColorStop(0, CHR); hg.addColorStop(1, BLK)
+    ctx.fillStyle = hg; ctx.strokeStyle = '#454950'; ctx.lineWidth = 1.2
+    ctx.beginPath(); ctx.arc(0, -52, 9.5, 0, TAU); ctx.fill(); ctx.stroke()
+    ctx.strokeStyle = SIL; ctx.lineWidth = 1.4
+    ctx.beginPath(); ctx.arc(0, -52, 9, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke()
+    poly(ctx, [[1, -56], [9.5, -54], [10, -47], [5, -42.5], [0, -46]], GUN, SIL, 1)
+    ctx.strokeStyle = BLK; ctx.lineWidth = 0.9
+    ctx.beginPath(); ctx.moveTo(4, -47.5); ctx.lineTo(8.5, -48.5); ctx.moveTo(4, -45.5); ctx.lineTo(7.5, -46.5); ctx.stroke()
+    glow(ctx, 6.5, -53.5, 7, '#d6dbe4', 0.45)
+    ctx.fillStyle = '#e6eaf2'
+    ctx.fillRect(2.4, -55, 7.6, 2)
+    poly(ctx, [[-7, -44], [-1, -43], [-2, -39], [-8, -41]], GUN, STL, 0.8)
+
+    poly(ctx, [[-4, -45], [6, -45], [9, -40], [7, -39], [-4, -40]], GUN, SIL, 1)
+  })
+
+  legGuard(r.front, true)
+  armGuard(r.front)
+}
+
+const DRAWERS = { kysora, umbra: shinobi, glacier: cyber, ember: oni, solar: royal }
+const BODY = { kysora: '#111214', umbra: '#0b0818', glacier: '#06131d', ember: '#16070a', solar: '#150e03' }
 
 export function drawCharacter(ctx, skinId, pose, accent) {
   const draw = DRAWERS[skinId] || shinobi

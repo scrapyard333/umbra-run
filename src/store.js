@@ -6,8 +6,9 @@ import { applyRun, applyStat, dailyFor, emptyStats, todayKey, templateOf } from 
 const initial = () => ({
   best: 0,
   orbs: 0,
-  skin: 'umbra',
-  owned: ['umbra'],
+  skin: 'kysora',
+  owned: ['kysora'],
+  world: 'auto',
   settings: { sound: true, music: true, quality: 'high' },
   stats: { ...emptyStats },
   achievements: [],
@@ -26,6 +27,7 @@ export const useGame = create(
       setScreen: (screen) => set({ screen }),
       openModal: (modal) => set({ modal }),
       closeModal: () => set({ modal: null }),
+      setWorld: (world) => set({ world }),
 
       finishRun: (run) => {
         const { next, newly } = applyRun(get(), run)
@@ -64,8 +66,15 @@ export const useGame = create(
     }),
     {
       name: 'umbra-run-save',
+      version: 2,
+      migrate: (state, version) => {
+        if (version < 2) {
+          return { ...state, skin: 'kysora', owned: Array.from(new Set([...(state.owned || []), 'kysora'])), world: 'auto' }
+        }
+        return state
+      },
       partialize: (s) => ({
-        best: s.best, orbs: s.orbs, skin: s.skin, owned: s.owned, settings: s.settings,
+        best: s.best, orbs: s.orbs, skin: s.skin, owned: s.owned, world: s.world, settings: s.settings,
         stats: s.stats, achievements: s.achievements, daily: s.daily, history: s.history, ghost: s.ghost,
       }),
     },

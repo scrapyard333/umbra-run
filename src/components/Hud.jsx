@@ -82,10 +82,10 @@ export default function Hud({ hud, banner, soundOn, onPause, onRestart, onSound,
               </div>
             </div>
             <div className="hidden items-center gap-2 rounded-2xl border border-white/10 bg-panel/80 px-3 py-2 backdrop-blur sm:flex">
-              <span className="h-3 w-3 rounded-full" style={{ background: lvl.accent, boxShadow: `0 0 10px ${lvl.accent}` }} />
+              <span className="h-3 w-3 rounded-full" style={{ background: hud.zoneAccent || lvl.accent, boxShadow: `0 0 10px ${hud.zoneAccent || lvl.accent}` }} />
               <div className="leading-tight">
                 <div className="text-[10px] font-bold tracking-widest text-ice">LV.{hud.level + 1}</div>
-                <div className="text-xs font-bold">{lvl.name}</div>
+                <div className="text-xs font-bold">{hud.zone || lvl.name}</div>
               </div>
             </div>
           </div>

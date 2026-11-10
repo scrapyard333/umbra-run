@@ -3,6 +3,7 @@ import { Engine, WORLD_H, GROUND_Y, PLAYER_X, PLAYER_W } from '../game/engine.js
 import { draw, fx } from '../game/renderer.js'
 import { LEVELS, SKINS, QUALITY, PX_PER_M } from '../game/constants.js'
 import { audio } from '../game/audio.js'
+import { BIOMES } from '../game/biomes.js'
 import { useGame } from '../store'
 import Hud from './Hud.jsx'
 import GameOverCard from './GameOverCard.jsx'
@@ -27,6 +28,7 @@ export default function GameScreen() {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     const eng = new Engine({ seed: (Math.random() * 1e9) | 0 })
+    eng.biomeMode = useGame.getState().world
     const skinOf = () => SKINS.find((k) => k.id === useGame.getState().skin) || SKINS[0]
     const accentOf = () => skinOf().accent
     const loadGhost = () => { eng.ghost = useGame.getState().ghost?.samples ?? null }
@@ -42,6 +44,7 @@ export default function GameScreen() {
     }
     audio.unlock()
     syncAudio()
+    audio.setBiome(eng.biome.active)
     audio.startMusic()
 
     const showBanner = (label, text, ms = 2200) => {
@@ -77,6 +80,8 @@ export default function GameScreen() {
         magnet: eng.magnet,
         slow: eng.slow,
         ghost: g ? Math.round((g.x - eng.x) / PX_PER_M) : null,
+        zone: BIOMES[eng.biome.active].name,
+        zoneAccent: BIOMES[eng.biome.active].accent,
       }
     }
 
@@ -95,6 +100,7 @@ export default function GameScreen() {
       setPaused(false)
       setCount(0)
       audio.resume()
+      audio.setBiome(eng.biome.active)
       audio.startMusic()
     }
 
@@ -146,6 +152,10 @@ export default function GameScreen() {
           audio.sfx('die')
           audio.stopMusic()
           break
+        case 'zonechange':
+          showBanner('NOW ENTERING', BIOMES[e.id].name, 2600)
+          audio.setBiome(e.id)
+          break
         case 'levelup':
           showBanner('LEVEL UP', LEVELS[e.level].name)
           audio.sfx('levelup')
@@ -169,7 +179,7 @@ export default function GameScreen() {
       if (step > 0) {
         eng.update(step)
         eng.drain().forEach(onEvent)
-        audio.setTempo(100 + ((eng.speed - 420) / 460) * 40, eng.timeScale, eng.level)
+        audio.setMood(eng.timeScale)
       }
 
       const cur = useGame.getState().settings
